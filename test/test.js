@@ -136,3 +136,116 @@ vows.describe('apps').addBatch({
     }
   }
 }).export(module);
+
+vows.describe('users').addBatch({
+  'When I invoke addUsers': {
+    topic: function() {
+      nock('http://endpoint.example.com').
+        matchHeader('authorization', 'SuperAuthToken').
+        post('/users', {
+            email: 'user1@vcap.com',
+            password: 'password'
+        }).reply(204);
+      var callback = this.callback;
+      var client = new vcap.Client('http://endpoint.example.com', 'SuperAuthToken');
+      client.addUser('user1@vcap.com', 'password', function(err, res) {
+        callback(null, {
+          err: err || null,
+          res: res
+        });
+      });
+    },
+    'Then there should not be errors': function(topic) {
+      assert.isNull(topic.err);
+    },
+    'And response code is 204': function(topic) {
+      assert.equal(topic.res, 204);
+    }
+  },
+  'When I invoke removeUser': {
+    topic: function() {
+      nock('http://endpoint.example.com').
+        matchHeader('authorization', 'SuperAuthToken').
+        delete('/users/user1@vcap.com').reply(204)
+      var callback = this.callback;
+      var client = new vcap.Client('http://endpoint.example.com', 'SuperAuthToken');
+      client.removeUser('user1@vcap.com', function(err, res) {
+        callback(null, {
+          err: err || null,
+          res: res
+        });
+      });
+    },
+    'Then there should not be errors': function(topic) {
+      assert.isNull(topic.err);
+    },
+    'And response code is 204': function(topic) {
+      assert.equal(topic.res, 204);
+    }
+  },
+  'When I invoke listUsers': {
+    'And there are no users existent': {
+      topic: function() {
+        nock('http://endpoint.example.com').matchHeader('authorization', 'SuperAuthToken').get('/users').reply(200, []);
+        var callback = this.callback;
+        var client = new vcap.Client('http://endpoint.example.com', 'SuperAuthToken');
+        client.listUsers(function(err, list) {
+          callback(null, {
+            err: err || null,
+            list: list
+          });
+        });
+      },
+      'Then there should not be errors': function(topic) {
+        assert.isNull(topic.err);
+      },
+      'And the list should be an empty array': function(topic) {
+        assert.isEmpty(topic.list);
+      }
+    },
+    'And there are existing users': {
+      topic: function() {
+        nock('http://endpoint.example.com').matchHeader('authorization', 'SuperAppsToken').get('/users').reply(200, [
+          {
+            email: 'user1@vcap.com',
+            admin: false,
+            apps: []
+          },
+          {
+            email: 'user2@vcap.com',
+            admin: false,
+            apps: []
+          }
+        ]);
+        var callback = this.callback;
+        var client = new vcap.Client('http://endpoint.example.com', 'SuperAppsToken');
+        client.listUsers(function(err, list) {
+          callback(null, {
+            err: err || null,
+            list: list
+          });
+        });
+      },
+      'Then there should not be errors': function(topic) {
+        assert.isNull(topic.err);
+      },
+      'And the length of the list should match the number of apps in my profile': function(topic) {
+        assert.lengthOf(topic.list, 2);
+      },
+      'And the attributes of the users should match': function(topic) {
+        assert.deepEqual(topic.list, [
+          {
+            email: 'user1@vcap.com',
+            admin: false,
+            apps: []
+          },
+          {
+            email: 'user2@vcap.com',
+            admin: false,
+            apps: []
+          }
+        ]);
+      }
+    }
+  }
+}).export(module);
